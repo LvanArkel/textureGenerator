@@ -12,8 +12,7 @@ fn main() -> () {
     let index3 = graph.add_node(node3);
     graph.add_edge(index1, index3, 0).unwrap();
     graph.add_edge(index2, index3, 1).unwrap();
-    graph.generate().unwrap();
-    let result = graph.get_result(&index3);
-    let img = result.unwrap();
-    img.save("test.png");
+    graph.generate_graph().unwrap();
+    let end = graph.get_generated_node(&index3).unwrap();
+    end.save("test.png").unwrap();
 }

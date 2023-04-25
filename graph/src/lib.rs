@@ -5,7 +5,7 @@ use petgraph::Direction::Incoming;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::prelude::DiGraph;
 use petgraph::graph::NodeIndex;
-use petgraph::visit::{Topo, EdgeRef};
+use petgraph::visit::{Topo, EdgeRef, Bfs};
 
 pub trait TextureTransformer<T> {
     fn generate(&self, inputs: Vec<&T>) -> T;
@@ -56,16 +56,6 @@ impl<T> TextureGraph<T> {
         self.g.add_node(test_node)
     }
 
-    fn insert_edge(&mut self, src: NodeIndex, dest: NodeIndex, target_input: usize) -> Result<(), String> {
-        let new_edge = self.g.add_edge(src, dest, target_input);
-        if is_cyclic_directed(&self.g) {
-            self.g.remove_edge(new_edge);
-            Err(String::from("Would have created cycle"))
-        } else {
-            Ok(())
-        }
-    }
-
     pub fn add_edge(&mut self, src: NodeIndex, dest: NodeIndex, target_input: usize) -> Result<(), String> {
         if self.g.node_weight(src).is_none() {
             return Err(format!("Unknown node {:?}", src));
@@ -94,6 +84,7 @@ impl<T> TextureGraph<T> {
                     Err(String::from("Edge would create cycle"))
                 } else {
                     self.cached = false;
+                    self.invalidate_nodes(dest);
                     Ok(())
                 }
             },
@@ -110,11 +101,20 @@ impl<T> TextureGraph<T> {
         }
     }
 
-    pub fn is_complete(&self) -> bool {
-        self.g.node_indices().all(|i| {
-            let node = &self.g[i];
-            node.function.inputs() == self.g.neighbors_directed(i, Incoming).count()
-        })
+    pub fn invalidate_nodes(&mut self, source_index: NodeIndex) {
+        let mut bfs = Bfs::new(&self.g, source_index);
+        while let Some(nx) = bfs.next(&self.g) {
+            self.results.remove(&nx);
+        }
+    }
+
+    pub fn node_complete(&self, node_index: NodeIndex) -> bool {
+        let node = &self.g[node_index];
+        node.function.inputs() == self.g.neighbors_directed(node_index, Incoming).count()
+    }
+
+    pub fn graph_complete(&self) -> bool {
+        self.g.node_indices().all(|i| self.node_complete(i))
     }
 
     pub fn get_result(&self, index: &NodeIndex) -> Option<&T> {
@@ -124,33 +124,40 @@ impl<T> TextureGraph<T> {
         }
     }
 
-    pub fn generate(&mut self) -> Result<&HashMap<NodeIndex, T>, String> {
-        if self.cached {
-            return Ok(&self.results)
+    pub fn generate_node(&mut self, index: NodeIndex) -> Result<(), String> {
+        if !self.node_complete(index) {
+            return Err(String::from("Node not completed"));
         }
-        if !self.is_complete() {
-            //TODO: Change error type to Err<Vec<NodeIndex>>
-            return Err(String::from("Graph not complete"))
+        let mut inputs: Vec<_> = self.g.edges_directed(index, Incoming)
+            .map(|e| {
+                let source = e.source();
+                let target = e.weight();
+                (*target, source)
+            }).collect();
+        if inputs.iter().any(|(_, src)| !self.results.contains_key(src)) {
+            return Err(String::from("Predecessors of node not generated"))
         }
-        self.results = HashMap::<NodeIndex, T>::new();
+        inputs.sort_by_key(|(t, _)| *t);
+        let generated_value = self.g[index].function.generate(
+            inputs.iter().map(|(_, source)| &self.results[source]).collect()
+        );
+        self.results.insert(index, generated_value);
+        Ok(())
+    }
+    
+    pub fn generate_graph(&mut self) -> Result<(), String> {
         let mut topo = Topo::new(&self.g);
-        while let Some(i) = topo.next(&self.g) {
-            let node = &self.g[i];
-            println!("Traversing node {}", node.name);
-            let mut arguments: Vec<_> = self.g.edges_directed(i, Incoming)
-                .map(|e| {
-                    let source = e.source();
-                    let target = e.weight();
-                    (*target, source)
-                }).collect();
-            arguments.sort_by_key(|(t, _)| *t);
-            let generated_value = node.function.generate(
-                arguments.iter().map(|(_, source)| &self.results[source]).collect()
-            );
-            self.results.insert(i, generated_value);
+        while let Some(index) = topo.next(&self.g) {
+            match self.generate_node(index) {
+                Ok(_) => continue,
+                Err(msg) => return Err(msg),
+            }
         }
-        self.cached = true;
-        Ok(&self.results)
+        Ok(())
+    }
+
+    pub fn get_generated_node(&mut self, index: &NodeIndex) -> Option<&T> {
+        self.results.get(index)
     }
 }
 
@@ -342,95 +349,113 @@ mod tests {
     }
 
     #[test]
-    fn complete_graph() {
+    fn complete_nodes() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
+        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        let index3 = graph.add_node(node3);
+        assert!(!graph.graph_complete());
+        assert!(graph.node_complete(index1));
+        assert!(graph.node_complete(index2));
+        assert!(!graph.node_complete(index3));
+        assert!(graph.add_edge(index1, index3, 0).is_ok());
+        assert!(!graph.node_complete(index3));
+        assert!(graph.add_edge(index2, index3, 1).is_ok());
+        assert!(graph.node_complete(index1));
+        assert!(graph.node_complete(index2));
+        assert!(graph.node_complete(index3));
+        assert!(graph.graph_complete());
+    }
+
+    #[test]
+    fn generate_node() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
+        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        let index3 = graph.add_node(node3);
+        assert!(graph.add_edge(index1, index3, 0).is_ok());
+        assert!(graph.add_edge(index2, index3, 1).is_ok());
+        assert!(graph.generate_node(index1).is_ok());
+        assert!(graph.generate_node(index2).is_ok());
+        assert!(graph.generate_node(index3).is_ok());
+        assert!(*graph.get_generated_node(&index1).unwrap() == 1);
+        assert!(*graph.get_generated_node(&index2).unwrap() == 2);
+        assert!(*graph.get_generated_node(&index3).unwrap() == 3);
+    }
+
+    #[test]
+    fn generate_not_complete() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
+        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        let index3 = graph.add_node(node3);
+        assert!(graph.add_edge(index1, index3, 0).is_ok());
+        assert!(graph.generate_node(index3).is_err());
+        assert!(graph.get_generated_node(&index3).is_none());
+    }
+
+    #[test]
+    fn generate_previous_not_generated() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
+        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        let index3 = graph.add_node(node3);
+        assert!(graph.add_edge(index1, index3, 0).is_ok());
+        assert!(graph.add_edge(index2, index3, 1).is_ok());
+        assert!(graph.generate_graph().is_ok());
+        assert!(*graph.get_generated_node(&index1).unwrap() == 1);
+        assert!(*graph.get_generated_node(&index2).unwrap() == 2);
+        assert!(*graph.get_generated_node(&index3).unwrap() == 3);
+    }
+
+    #[test]
+    fn generate_complete_graph() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
+        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        let index3 = graph.add_node(node3);
+        assert!(graph.add_edge(index1, index3, 0).is_ok());
+        assert!(graph.add_edge(index2, index3, 1).is_ok());
+    }
+
+    #[test]
+    fn add_edge_invalidate() {
         let mut graph = TextureGraph::<i32>::new();
         let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
         let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
         let node3 = Node::new(String::from("N3"), Box::new(Add{}));
         let node4 = Node::new(String::from("N4"), Box::new(Double{}));
-        // Empty graph is complete
-        assert!(graph.is_complete());
+        let node5 = Node::new(String::from("N2"), Box::new(Const(3)));
         let index1 = graph.add_node(node1);
         let index2 = graph.add_node(node2);
-        // Const does not need inputs
-        assert!(graph.is_complete());
         let index3 = graph.add_node(node3);
-        // Add needs 2 inputs
-        assert!(!graph.is_complete());
-        assert!(graph.add_edge(index1, index3, 0).is_ok());
-        assert!(!graph.is_complete());
-        assert!(graph.add_edge(index2, index3, 1).is_ok());
-        assert!(graph.is_complete());
-        // Double needs 1 input
         let index4 = graph.add_node(node4);
-        assert!(!graph.is_complete());
-        assert!(graph.add_edge(index3, index4, 0).is_ok());
-        assert!(graph.is_complete());
-    }
-
-    #[test]
-    fn simple_graph_generation() {
-        let mut graph = TextureGraph::<i32>::new();
-        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
-        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
-        let node3 = Node::new(String::from("N3"), Box::new(Add{}));
-        let index1 = graph.add_node(node1);
-        let index2 = graph.add_node(node2);
-        let index3 = graph.add_node(node3);
-        let node_count = graph.node_count();
-        assert_eq!(3, node_count);
+        let index5 = graph.add_node(node5);
         assert!(graph.add_edge(index1, index3, 0).is_ok());
-        // Incomplete graph cannot be generated
-        assert!(graph.generate().is_err());
         assert!(graph.add_edge(index2, index3, 1).is_ok());
-        assert!(!graph.cached);
-        let gen_result = graph.generate();
-        assert!(gen_result.is_ok());
-        let result = gen_result.unwrap();
-        assert_eq!(node_count, result.len());
-        assert_eq!(1, result[&index1]);
-        assert_eq!(2, result[&index2]);
-        assert_eq!(3, result[&index3]);
-        assert!(graph.cached);
-    }
-
-    #[test]
-    fn uncache_node() {
-        let mut graph = TextureGraph::<i32>::new();
-        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
-        let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
-        let _index1 = graph.add_node(node1);
-        assert!(graph.generate().is_ok());
-        assert!(graph.cached);
-        let _index2 = graph.add_node(node2);
-        assert!(!graph.cached);
-        assert!(graph.generate().is_ok());
-        assert!(graph.cached);
-    }
-
-    #[test]
-    fn uncache_edge() {
-        let mut graph = TextureGraph::<i32>::new();
-        let node1 = Node::new(String::from("N1"), Box::new(Const(1)));
-        let node2 = Node::new(String::from("N2"), Box::new(Double{}));
-        let node3 = Node::new(String::from("N3"), Box::new(Const(2)));
-        let node4 = Node::new(String::from("N4"), Box::new(Double{}));
-        let indices = vec![
-            graph.add_node(node1),
-            graph.add_node(node2),
-            graph.add_node(node3),
-            graph.add_node(node4),
-        ];
-        assert!(graph.add_edge(indices[0], indices[1], 0).is_ok());
-        assert!(graph.add_edge(indices[2], indices[3], 0).is_ok());
-        assert!(graph.generate().is_ok());
-        assert!(graph.cached);
-        assert!(graph.add_edge(indices[0], indices[3], 0).is_ok());
-        assert!(graph.add_edge(indices[2], indices[1], 0).is_ok());
-        assert!(!graph.cached);
-        assert!(graph.generate().is_ok());
-        assert!(graph.cached);
-
+        assert!(graph.add_edge(index3, index4, 0).is_ok());
+        assert!(graph.generate_graph().is_ok());
+        assert!(graph.add_edge(index5, index3, 0).is_ok());
+        assert!(graph.get_generated_node(&index1).is_some());
+        assert!(graph.get_generated_node(&index2).is_some());
+        assert!(graph.get_generated_node(&index3).is_none());
+        assert!(graph.get_generated_node(&index4).is_none());
+        assert!(graph.get_generated_node(&index5).is_some());
     }
 
 }
