@@ -31,7 +31,7 @@ fn main() -> () {
     for index in indices {
         let result = graph.get_generated_node(&index).unwrap();
         let img: RgbImage = result.convert();
-        img.save(format!("{}.png", graph.get_node(index).name));
+        img.save(format!("{}.png", graph.get_node(index).name)).unwrap();
     }
     // graph.add_edge(index1, index3, 0).unwrap();
     // graph.add_edge(index2, index3, 1).unwrap();
