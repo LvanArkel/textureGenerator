@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 graph = {path= "../graph"}
 image = "0.24.6"
+interpolation = "0.2.0"

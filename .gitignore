@@ -1,2 +1,3 @@
 /target
-/testImages
+Cargo.lock
+*.png

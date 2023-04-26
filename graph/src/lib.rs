@@ -13,7 +13,7 @@ pub trait TextureTransformer<T> {
 }
 
 pub struct Node<T> {
-    name: String,
+    pub name: String,
     function: Box<dyn TextureTransformer<T>>
 }
 
@@ -49,6 +49,10 @@ impl<T> TextureGraph<T> {
 
     pub fn node_count(&self) -> usize {
         self.g.node_count()
+    }
+
+    pub fn get_node(&self, index: NodeIndex) -> &Node<T> {
+        &self.g[index]
     }
 
     pub fn add_node(&mut self, test_node: Node<T>) -> NodeIndex {
