@@ -1,37 +1,79 @@
-use std::iter::zip;
+use graph::{TextureGraph, Node, NodeIndex};
+use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};
+use texture_generators::{SolidColorNode, GradientNode, Gradient, CheckerboardNode};
 
-use graph::{TextureGraph, Node};
-use image::{RgbImage, Rgb, Rgb32FImage, DynamicImage, buffer::ConvertBuffer};
-use texture_generators::{SolidColorNode, GradientNode, Gradient};
+fn create_graph(nodes: Vec<Node<Rgb32FImage>>) -> (TextureGraph<Rgb32FImage>, Vec<NodeIndex>) {
+    let mut graph = TextureGraph::<Rgb32FImage>::new();
+    let mut indices = Vec::new();
+    for node in nodes {
+        indices.push(graph.add_node(node));
+    }
+    (graph, indices)
+}
+
+fn add_edges(graph: &mut TextureGraph<Rgb32FImage>, indices: &Vec<NodeIndex>, edge_indices: Vec<(usize, usize, usize)>) -> Result<(), String> {
+    edge_indices.iter().map(|(a, b, target)| (indices[*a], indices[*b], target))
+        .map(|(e1, e2, target)| graph.add_edge(e1, e2, *target)).collect()
+    
+}
 
 fn main() -> () {
-    let mut graph = TextureGraph::<Rgb32FImage>::new();
-    let node1 = Node::new(String::from("Solid"), Box::new(SolidColorNode{color: Rgb([1.0, 0.0, 0.0])}));
-    let node2 = Node::new(String::from("GradientHorizontal"), 
-        Box::new(GradientNode{gradient:Gradient{
-            start: Rgb([0.0, 0.0, 0.0]),
-            end: Rgb([1.0, 0.0, 0.0])
-        }, direction: texture_generators::GradientNodeDirection::HORIZONTAL }));
-    let node3 = Node::new(String::from("GradientVertical"), 
-        Box::new(GradientNode{gradient:Gradient{
-            start: Rgb([0.0, 0.0, 0.0]),
-            end: Rgb([1.0, 0.0, 0.0])
-        }, direction: texture_generators::GradientNodeDirection::VERTICAL }));
-    let node4 = Node::new(String::from("GradientRadial"), 
-        Box::new(GradientNode{gradient:Gradient{
-            start: Rgb([0.0, 0.0, 0.0]),
-            end: Rgb([1.0, 0.0, 0.0])
-        }, direction: texture_generators::GradientNodeDirection::RADIAL }));
-    let index1 = graph.add_node(node1);
-    let index2 = graph.add_node(node2);
-    let index3 = graph.add_node(node3);
-    let index4 = graph.add_node(node4);
+    let nodes = vec![
+        Node::new(String::from("Solid"), Box::new(SolidColorNode{color: Rgb([1.0, 0.0, 0.0])})),
+        Node::new(String::from("GradientHorizontal"), 
+            Box::new(GradientNode{gradient:Gradient{
+                start: Rgb([0.0, 0.0, 0.0]),
+                end: Rgb([0.0, 1.0, 0.0])
+            }, direction: texture_generators::GradientNodeDirection::HORIZONTAL })),
+        Node::new(String::from("GradientVertical"), 
+            Box::new(GradientNode{gradient:Gradient{
+                start: Rgb([0.0, 0.0, 0.0]),
+                end: Rgb([1.0, 0.0, 0.0])
+            }, direction: texture_generators::GradientNodeDirection::VERTICAL })),
+        Node::new(String::from("GradientRadial"), 
+            Box::new(GradientNode{gradient:Gradient{
+                start: Rgb([0.0, 0.0, 0.0]),
+                end: Rgb([1.0, 0.0, 0.0])
+            }, direction: texture_generators::GradientNodeDirection::RADIAL })),
+        Node::new(String::from("CheckerboardS1"),
+            Box::new(CheckerboardNode{
+                size_x: 1,
+                size_y: 1,
+                color1: Rgb([0.0, 0.0, 0.0]),
+                color2: Rgb([1.0, 1.0, 1.0]),
+            })),
+        Node::new(String::from("CheckerboardS2"),
+            Box::new(CheckerboardNode{
+                size_x: 2,
+                size_y: 2,
+                color1: Rgb([0.0, 0.0, 0.0]),
+                color2: Rgb([0.0, 1.0, 1.0]),
+            })),
+        Node::new(String::from("CheckerboardS3"),
+            Box::new(CheckerboardNode{
+                size_x: 3,
+                size_y: 3,
+                color1: Rgb([0.0, 0.0, 0.0]),
+                color2: Rgb([1.0, 0.0, 0.0]),
+            })),
+        Node::new(String::from("CheckerboardS1-3"),
+            Box::new(CheckerboardNode{
+                size_x: 1,
+                size_y: 3,
+                color1: Rgb([0.0, 0.0, 0.0]),
+                color2: Rgb([0.0, 1.0, 0.0]),
+            })),
+    ];
+    let (mut graph, indices) = create_graph(nodes);
+    let edges = vec![
+        
+    ];
+    add_edges(&mut graph, &indices, edges).unwrap();
     graph.generate_graph().unwrap();
-    let indices = vec![index1, index2, index3, index4];
     for index in indices {
         let result = graph.get_generated_node(&index).unwrap();
         let img: RgbImage = result.convert();
-        img.save(format!("{}.png", graph.get_node(index).name)).unwrap();
+        img.save(format!("testimages/{}.png", graph.get_node(index).name)).unwrap();
     }
     // graph.add_edge(index1, index3, 0).unwrap();
     // graph.add_edge(index2, index3, 1).unwrap();

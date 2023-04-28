@@ -30,7 +30,10 @@ pub struct GradientNode {
 }
 
 pub struct CheckerboardNode {
-
+    pub size_x: usize,
+    pub size_y: usize,
+    pub color1: Color,
+    pub color2: Color
 }
 
 pub struct LinesNode {
@@ -77,8 +80,16 @@ impl TextureTransformer<Rgb32FImage> for GradientNode {
 }
 
 impl TextureTransformer<Rgb32FImage> for CheckerboardNode {
-    fn generate(&self, inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
-        todo!()
+    fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
+        let section_width = WIDTH / (self.size_x + 1) as u32;
+        let section_height = HEIGHT / (self.size_y + 1) as u32;
+        ImageBuffer::from_fn(WIDTH, HEIGHT, |x, y| {
+            if ((x / section_width)%2) == ((y / section_height)%2) {
+                self.color1
+            } else {
+                self.color2
+            }
+        })
     }
 
     fn inputs(&self) -> usize {
@@ -87,7 +98,7 @@ impl TextureTransformer<Rgb32FImage> for CheckerboardNode {
 }
 
 impl TextureTransformer<Rgb32FImage> for LinesNode {
-    fn generate(&self, inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
+    fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
         todo!()
     }
 
@@ -97,7 +108,7 @@ impl TextureTransformer<Rgb32FImage> for LinesNode {
 }
 
 impl TextureTransformer<Rgb32FImage> for BrickNode {
-    fn generate(&self, inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
+    fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
         todo!()
     }
 
@@ -110,9 +121,9 @@ impl TextureTransformer<Rgb32FImage> for BrickNode {
 #[cfg(test)]
 mod tests {
     use graph::TextureTransformer;
-    use image::{Rgb, GenericImageView};
+    use image::Rgb;
 
-    use crate::{SolidColorNode, Gradient, GradientNode, GradientNodeDirection::*, HEIGHT, WIDTH};
+    use crate::{SolidColorNode, Gradient, GradientNode, GradientNodeDirection::*, HEIGHT, WIDTH, CheckerboardNode};
 
     #[test]
     fn test_solid() {
@@ -194,6 +205,66 @@ mod tests {
             for y in 0..HEIGHT/2 {
                 assert!(image.get_pixel(x, y).0 <= image.get_pixel(x, y+1).0);
                 assert!(image.get_pixel(x, HEIGHT-1-y).0 >= image.get_pixel(x, HEIGHT-2-y).0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_checkerboard_default() {
+        let node = CheckerboardNode{
+            size_x: 1,
+            size_y: 1,
+            color1: Rgb([0.0, 0.0, 0.0]),
+            color2: Rgb([1.0, 1.0, 1.0]),
+        };
+        let image = node.generate(Vec::new());
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                if (x < WIDTH/2) == (y < HEIGHT/2) {
+                    assert_eq!(image.get_pixel(x, y).0, node.color1.0);
+                } else {
+                    assert_eq!(image.get_pixel(x, y).0, node.color2.0)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_checkerboard_higher_scale() {
+        let node = CheckerboardNode{
+            size_x: 3,
+            size_y: 3,
+            color1: Rgb([0.0, 0.0, 0.0]),
+            color2: Rgb([1.0, 1.0, 1.0]),
+        };
+        let image = node.generate(Vec::new());
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                if ((x / (WIDTH/(node.size_x+1) as u32))%2) == ((y / (HEIGHT/(node.size_x+1) as u32))%2) {
+                    assert_eq!(image.get_pixel(x, y).0, node.color1.0);
+                } else {
+                    assert_eq!(image.get_pixel(x, y).0, node.color2.0)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_checkerboard_separate_scales() {
+        let node = CheckerboardNode{
+            size_x: 1,
+            size_y: 3,
+            color1: Rgb([0.0, 0.0, 0.0]),
+            color2: Rgb([1.0, 1.0, 1.0]),
+        };
+        let image = node.generate(Vec::new());
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                if ((x / (WIDTH/(node.size_x+1) as u32))%2) == ((y / (HEIGHT/(node.size_y+1) as u32))%2) {
+                    assert_eq!(image.get_pixel(x, y).0, node.color1.0);
+                } else {
+                    assert_eq!(image.get_pixel(x, y).0, node.color2.0)
+                }
             }
         }
     }

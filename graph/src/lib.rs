@@ -4,8 +4,9 @@ use std::fmt::Debug;
 use petgraph::Direction::Incoming;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::prelude::DiGraph;
-use petgraph::graph::NodeIndex;
 use petgraph::visit::{Topo, EdgeRef, Bfs};
+
+pub type NodeIndex = petgraph::graph::NodeIndex;
 
 pub trait TextureTransformer<T> {
     fn generate(&self, inputs: Vec<&T>) -> T;
@@ -167,7 +168,7 @@ impl<T> TextureGraph<T> {
 
 #[cfg(test)]
 mod tests {
-    use petgraph::{algo::is_cyclic_directed, dot::{Dot, Config}};
+    use petgraph::algo::is_cyclic_directed;
 
     use crate::{TextureGraph, Node, TextureTransformer};
 
@@ -184,7 +185,7 @@ mod tests {
 
     struct Const(i32);
     impl TextureTransformer<i32> for Const {
-        fn generate(&self, inputs: Vec<&i32>) -> i32 {
+        fn generate(&self, _inputs: Vec<&i32>) -> i32 {
             self.0
         }
 
@@ -400,7 +401,7 @@ mod tests {
         let node2 = Node::new(String::from("N2"), Box::new(Const(2)));
         let node3 = Node::new(String::from("N3"), Box::new(Add{}));
         let index1 = graph.add_node(node1);
-        let index2 = graph.add_node(node2);
+        let _index2 = graph.add_node(node2);
         let index3 = graph.add_node(node3);
         assert!(graph.add_edge(index1, index3, 0).is_ok());
         assert!(graph.generate_node(index3).is_err());
