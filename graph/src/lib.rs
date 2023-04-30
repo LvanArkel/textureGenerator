@@ -11,6 +11,9 @@ pub type NodeIndex = petgraph::graph::NodeIndex;
 pub trait TextureTransformer<T> {
     fn generate(&self, inputs: Vec<&T>) -> T;
     fn inputs(&self) -> usize;
+    fn is_valid(&self, _inputs: &Vec<&T>) -> bool {
+        true
+    }
 }
 
 pub struct Node<T> {
@@ -139,13 +142,17 @@ impl<T> TextureGraph<T> {
                 let target = e.weight();
                 (*target, source)
             }).collect();
-        if inputs.iter().any(|(_, src)| !self.results.contains_key(src)) {
+        inputs.sort_by_key(|(t, _)| *t);
+        let targets: Vec<_> = inputs.iter().map(|(_, source)| source).collect();
+        if targets.iter().any(|src| !self.results.contains_key(src)) {
             return Err(String::from("Predecessors of node not generated"))
         }
-        inputs.sort_by_key(|(t, _)| *t);
-        let generated_value = self.g[index].function.generate(
-            inputs.iter().map(|(_, source)| &self.results[source]).collect()
-        );
+        let targets = targets.iter().map(|&target| &self.results[target]).collect();
+        let node = &self.g[index];
+        if !node.function.is_valid(&targets) {
+            return Err(String::from("Input images not valid"))
+        }
+        let generated_value = node.function.generate(targets);
         self.results.insert(index, generated_value);
         Ok(())
     }
@@ -202,6 +209,10 @@ mod tests {
 
         fn inputs(&self) -> usize {
             1
+        }
+
+        fn is_valid(&self, inputs: &Vec<&i32>) -> bool {
+            inputs.len() > 0 && *inputs[0] >= 0
         }
     }
 
@@ -461,6 +472,19 @@ mod tests {
         assert!(graph.get_generated_node(&index3).is_none());
         assert!(graph.get_generated_node(&index4).is_none());
         assert!(graph.get_generated_node(&index5).is_some());
+    }
+
+    #[test]
+    fn valid_targets() {
+        let mut graph = TextureGraph::<i32>::new();
+        let node1 = Node::new(String::from("N1"), Box::new(Const(-1)));
+        let node2 = Node::new(String::from("N2"), Box::new(Double{}));
+        let index1 = graph.add_node(node1);
+        let index2 = graph.add_node(node2);
+        graph.add_edge(index1, index2, 0).unwrap();
+        graph.generate_node(index1).unwrap();
+        assert!(graph.generate_node(index2).is_err());
+
     }
 
 }
