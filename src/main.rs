@@ -1,6 +1,6 @@
 use graph::{TextureGraph, Node, NodeIndex};
 use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};
-use texture_generators::{SolidColorNode, GradientNode, Gradient, CheckerboardNode};
+use texture_generators::{SolidColorNode, GradientNode, Gradient, CheckerboardNode, LinesNode, LinesPosition};
 
 fn create_graph(nodes: Vec<Node<Rgb32FImage>>) -> (TextureGraph<Rgb32FImage>, Vec<NodeIndex>) {
     let mut graph = TextureGraph::<Rgb32FImage>::new();
@@ -63,6 +63,38 @@ fn main() -> () {
                 color1: Rgb([0.0, 0.0, 0.0]),
                 color2: Rgb([0.0, 1.0, 0.0]),
             })),
+        Node::new(String::from("LineStart"),
+            Box::new(LinesNode {
+                scale:1, 
+                thickness: 0.4, 
+                position: LinesPosition::Start, 
+                color1: Rgb([0.0, 0.0, 0.0]), 
+                color2: Rgb([1.0, 1.0, 1.0]) 
+            })),
+        Node::new(String::from("LineMid"),
+            Box::new(LinesNode {
+                scale:1, 
+                thickness: 0.4, 
+                position: LinesPosition::Middle, 
+                color1: Rgb([0.0, 0.0, 0.0]), 
+                color2: Rgb([1.0, 1.0, 1.0]) 
+            })),
+        Node::new(String::from("LineEnd"),
+            Box::new(LinesNode {
+                scale:1, 
+                thickness: 0.4, 
+                position: LinesPosition::End, 
+                color1: Rgb([0.0, 0.0, 0.0]), 
+                color2: Rgb([1.0, 1.0, 1.0]) 
+            })),
+        Node::new(String::from("Multiscale"),
+            Box::new(LinesNode {
+                scale:4, 
+                thickness: 0.2, 
+                position: LinesPosition::Start, 
+                color1: Rgb([0.0, 0.0, 0.0]), 
+                color2: Rgb([1.0, 1.0, 1.0]) 
+            })),
     ];
     let (mut graph, indices) = create_graph(nodes);
     let edges = vec![
@@ -75,10 +107,4 @@ fn main() -> () {
         let img: RgbImage = result.convert();
         img.save(format!("testimages/{}.png", graph.get_node(index).unwrap().name)).unwrap();
     }
-    // graph.add_edge(index1, index3, 0).unwrap();
-    // graph.add_edge(index2, index3, 1).unwrap();
-    // graph.generate_graph().unwrap();
-    // let end = graph.get_generated_node(&index3).unwrap();
-    // let img: RgbImage = end.convert();
-    // img.save("test.png").unwrap();
 }

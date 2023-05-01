@@ -36,8 +36,16 @@ pub struct CheckerboardNode {
     pub color2: Color
 }
 
-pub struct LinesNode {
+pub enum LinesPosition {
+    Start, Middle, End
+}
 
+pub struct LinesNode {
+    pub scale: usize,
+    pub thickness: f32,
+    pub position: LinesPosition,
+    pub color1: Color,
+    pub color2: Color
 }
 
 pub struct BrickNode {
@@ -99,7 +107,16 @@ impl TextureTransformer<Rgb32FImage> for CheckerboardNode {
 
 impl TextureTransformer<Rgb32FImage> for LinesNode {
     fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
-        todo!()
+        let section_height = HEIGHT / self.scale as u32;
+        
+        Rgb32FImage::from_fn(WIDTH, HEIGHT, |_x, y| {
+            let d_y = (y % section_height) as f32 / section_height as f32;
+            match self.position {
+                LinesPosition::Start => if d_y <= self.thickness {self.color2} else {self.color1},
+                LinesPosition::Middle => if (0.5-d_y).abs() <= self.thickness / 2.0 {self.color2} else {self.color1},
+                LinesPosition::End => if (1.0-d_y) <= self.thickness {self.color2} else {self.color1},
+            }
+        })
     }
 
     fn inputs(&self) -> usize {
@@ -121,9 +138,9 @@ impl TextureTransformer<Rgb32FImage> for BrickNode {
 #[cfg(test)]
 mod tests {
     use graph::TextureTransformer;
-    use image::Rgb;
+    use image::{Rgb, GenericImageView};
 
-    use crate::{SolidColorNode, Gradient, GradientNode, GradientNodeDirection::*, HEIGHT, WIDTH, CheckerboardNode};
+    use crate::{SolidColorNode, Gradient, GradientNode, GradientNodeDirection::*, HEIGHT, WIDTH, CheckerboardNode, LinesNode, LinesPosition::{*, self}};
 
     #[test]
     fn test_solid() {
@@ -267,5 +284,52 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn test_line_helper(scale: usize, thickness: f32, position: LinesPosition) {
+        let color1 = Rgb([0.0, 0.0, 0.0]);
+        let color2 = Rgb([1.0, 1.0, 1.0]);
+        let node = LinesNode {
+            scale, thickness, position, color1, color2
+        };
+        let image = node.generate(Vec::new());
+        for y in 0..HEIGHT {
+            let head = image.get_pixel(0, y);
+            for x in 0..WIDTH {
+                assert_eq!(head, image.get_pixel(x, y));
+            }
+        }
+        let section_size = HEIGHT/scale as u32;
+        for i in 0..scale {
+            for y in 0..section_size {
+                let d_y = y as f32 / section_size as f32;
+                let color = match node.position {
+                    Start => if d_y <= thickness {color2} else {color1},
+                    Middle => if (0.5-d_y).abs() <= thickness/2.0 {color2} else {color1},
+                    End => if (1.0-d_y) <= thickness {color2} else {color1},
+                };
+                assert_eq!(&color, image.get_pixel(0, section_size*i as u32+y));
+            }
+        }
+    }
+
+    #[test]
+    fn test_lines_single_scale() {
+        test_line_helper(2, 0.5, Start);
+    }
+
+    #[test]
+    fn test_lines_thin_line() {
+        test_line_helper(2, 0.1, Start);
+    }
+
+    #[test]
+    fn test_lines_middle() {
+        test_line_helper(2, 0.5, Middle);
+    }
+
+    #[test]
+    fn test_lines_end() {
+        test_line_helper(2, 0.5, End);
     }
 }
