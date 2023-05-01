@@ -9,8 +9,12 @@ use petgraph::visit::{Topo, EdgeRef, Bfs};
 pub type NodeIndex = petgraph::graph::NodeIndex;
 
 pub trait TextureTransformer<T> {
+    /// Generates the value of the nodes given its target inputs in the correct order.
+    /// Function should assume inputs are valid
     fn generate(&self, inputs: Vec<&T>) -> T;
+    /// Returns the amount of inputs this Transformer expects.
     fn inputs(&self) -> usize;
+    /// Checks whether the inputs of the node conform. Can be used to see if images are the same size.
     fn is_valid(&self, _inputs: &Vec<&T>) -> bool {
         true
     }
@@ -36,6 +40,7 @@ impl<T> Node<T> {
     }
 }
 
+/// Main datastructure for a graph of transformers. Contains all nodes in the system, as well as generated values.
 pub struct TextureGraph<T> {
     g: DiGraph<Node<T>, usize>,
     results: HashMap<NodeIndex, T>,
@@ -43,6 +48,7 @@ pub struct TextureGraph<T> {
 }
 
 impl<T> TextureGraph<T> {
+    /// Creates a new Texture graph with no nodes or edges.
     pub fn new() -> Self{
         TextureGraph {
             g: DiGraph::new(),
@@ -51,19 +57,30 @@ impl<T> TextureGraph<T> {
          }
     }
 
+    /// Returns the number of nodes in the graph.
     pub fn node_count(&self) -> usize {
         self.g.node_count()
     }
 
-    pub fn get_node(&self, index: NodeIndex) -> &Node<T> {
-        &self.g[index]
+    /// Returns a node in the graph based on the index.
+    pub fn get_node(&self, index: NodeIndex) -> Option<&Node<T>> {
+        self.g.node_weight(index)
     }
 
+    /// Adds a new node to the graph, unconnected to any other nodes.
     pub fn add_node(&mut self, test_node: Node<T>) -> NodeIndex {
         self.cached = false;
         self.g.add_node(test_node)
     }
 
+    /// Adds an edge between two nodes in the graph, with a given target input.
+    /// Fails if:
+    /// * Either the source or destination index does not exist in the graph.
+    /// * The source and destination are the same node.
+    /// * The added node would create a cycle.
+    /// * The target is invalid for the destination node
+    /// 
+    /// In the case that an edge to the destination already exists with the given target input, the new edges replaces the old.
     pub fn add_edge(&mut self, src: NodeIndex, dest: NodeIndex, target_input: usize) -> Result<(), String> {
         if self.g.node_weight(src).is_none() {
             return Err(format!("Unknown node {:?}", src));
@@ -109,6 +126,8 @@ impl<T> TextureGraph<T> {
         }
     }
 
+    /// Removes the results of all nodes reachable from the source node.
+    /// This can be used when regenerating a node to lazily propogate the regeneration to other nodes.
     pub fn invalidate_nodes(&mut self, source_index: NodeIndex) {
         let mut bfs = Bfs::new(&self.g, source_index);
         while let Some(nx) = bfs.next(&self.g) {
@@ -116,15 +135,18 @@ impl<T> TextureGraph<T> {
         }
     }
 
+    /// Checks if all targets of a given node are connected by edges..
     pub fn node_complete(&self, node_index: NodeIndex) -> bool {
         let node = &self.g[node_index];
         node.function.inputs() == self.g.neighbors_directed(node_index, Incoming).count()
     }
 
+    /// Checks if all targets of all nodes are connected by edges.
     pub fn graph_complete(&self) -> bool {
         self.g.node_indices().all(|i| self.node_complete(i))
     }
 
+    /// Returns the generated value of a given node index.
     pub fn get_result(&self, index: &NodeIndex) -> Option<&T> {
         match self.cached {
             true => Some(&self.results[index]),
@@ -132,6 +154,11 @@ impl<T> TextureGraph<T> {
         }
     }
 
+    /// Generates the value of a given node.
+    /// Fails if:
+    /// * Node is not connected by enough targets
+    /// * An input of an input node is not generated
+    /// * Inputs of the node function are not valid.
     pub fn generate_node(&mut self, index: NodeIndex) -> Result<(), String> {
         if !self.node_complete(index) {
             return Err(String::from("Node not completed"));
@@ -157,6 +184,8 @@ impl<T> TextureGraph<T> {
         Ok(())
     }
     
+    /// Generates the entire graph in a topological order.
+    /// This function does not skip any previously generated nodes.
     pub fn generate_graph(&mut self) -> Result<(), String> {
         let mut topo = Topo::new(&self.g);
         while let Some(index) = topo.next(&self.g) {
@@ -168,6 +197,23 @@ impl<T> TextureGraph<T> {
         Ok(())
     }
 
+    /// Generates the entire graph in a topological order.
+    /// This function skips any previously generated nodes.
+    pub fn generate_graph_missing(&mut self) -> Result<(), String> {
+        let mut topo = Topo::new(&self.g);
+        while let Some(index) = topo.next(&self.g) {
+            if self.results.contains_key(&index) {
+                continue
+            }
+            match self.generate_node(index) {
+                Ok(_) => continue,
+                Err(msg) => return Err(msg),
+            }
+        }
+        Ok(())
+    }    
+
+    /// Returns the generated value of a given index if it exists.
     pub fn get_generated_node(&mut self, index: &NodeIndex) -> Option<&T> {
         self.results.get(index)
     }
