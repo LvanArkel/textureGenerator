@@ -81,7 +81,7 @@ pub enum BlendOptions {
 }
 
 pub struct BlendNode {
-    option: BlendOptions
+    pub option: BlendOptions
 }
 
 // Generating nodes

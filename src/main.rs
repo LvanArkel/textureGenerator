@@ -1,6 +1,6 @@
 use graph::{TextureGraph, Node, NodeIndex};
 use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};
-use texture_generators::{SolidColorNode, GradientNode, Gradient, CheckerboardNode, LinesNode, LinesPosition};
+use texture_generators::{SolidColorNode, GradientNode, Gradient, CheckerboardNode, LinesNode, LinesPosition, BlendNode};
 
 fn create_graph(nodes: Vec<Node<Rgb32FImage>>) -> (TextureGraph<Rgb32FImage>, Vec<NodeIndex>) {
     let mut graph = TextureGraph::<Rgb32FImage>::new();
@@ -95,10 +95,24 @@ fn main() -> () {
                 color1: Rgb([0.0, 0.0, 0.0]), 
                 color2: Rgb([1.0, 1.0, 1.0]) 
             })),
+        Node::new(String::from("BasicBlend"),
+            Box::new(BlendNode {
+                option: texture_generators::BlendOptions::Multiply
+            })),
+        Node::new(String::from("GrayGradient"),
+            Box::new(GradientNode {
+                gradient: Gradient{start: Rgb([0.0, 0.0, 0.0]), end: Rgb([1.0, 1.0, 1.0])},
+                direction: texture_generators::GradientNodeDirection::HORIZONTAL
+            })),
+        Node::new(String::from("MaskBlend"),
+            Box::new(BlendNode {
+                option: texture_generators::BlendOptions::Mask(0.4)
+            }))
     ];
     let (mut graph, indices) = create_graph(nodes);
     let edges = vec![
-        
+        (1, 12, 0), (4, 12, 1),
+        (13, 14, 0), (0, 14, 1)
     ];
     add_edges(&mut graph, &indices, edges).unwrap();
     graph.generate_graph().unwrap();
