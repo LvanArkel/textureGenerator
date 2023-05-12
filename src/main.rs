@@ -2,7 +2,7 @@ use core::Gradient;
 
 use graph::{TextureGraph, Node, NodeIndex};
 use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};
-use texture_generators::{SolidColorNode, GradientNode, CheckerboardNode, LinesNode, LinesPosition, BlendNode};
+use texture_generators::{GradientNode, CheckerboardNode, LinesNode, LinesPosition, BlendNode, SolidColorNode};
 
 fn create_graph(nodes: Vec<Node<Rgb32FImage>>) -> (TextureGraph<Rgb32FImage>, Vec<NodeIndex>) {
     let mut graph = TextureGraph::<Rgb32FImage>::new();
