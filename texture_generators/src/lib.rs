@@ -1,26 +1,7 @@
+use core::{Gradient, Color, WIDTH, HEIGHT, average_color};
 use graph::TextureTransformer;
 use image::{Rgb, Rgb32FImage, ImageBuffer, Pixel};
-use interpolation::lerp;
 
-const WIDTH: u32 = 128;
-const HEIGHT: u32 = 128;
-
-type Color = Rgb<f32>;
-
-/// A linear gradient between 2 colors.
-pub struct Gradient {
-    pub start: Color,
-    pub end: Color
-}
-
-fn lerp_gradient(gradient: &Gradient, fraction: f32) -> Color {
-    Rgb(lerp(&gradient.start.0, &gradient.end.0, &fraction))
-}
-
-fn average_color(color: &Color) -> f32 {
-    let [r, g, b] = color.0;
-    (r+g+b) / 3.0
-}
 
 // Generating nodes
 /// A node that generates a solid color.
@@ -99,16 +80,16 @@ impl TextureTransformer<Rgb32FImage> for GradientNode {
     fn generate(&self, _: Vec<&Rgb32FImage>) -> Rgb32FImage {
         match self.direction {
             GradientNodeDirection::HORIZONTAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |x, _| {
-                lerp_gradient(&self.gradient, x as f32 / WIDTH as f32)
+                self.gradient.get_color(x as f32 / WIDTH as f32)
             }),
             GradientNodeDirection::VERTICAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |_, y| {
-                lerp_gradient(&self.gradient, y as f32 / HEIGHT as f32)
+                self.gradient.get_color(y as f32 / WIDTH as f32)
             }),
             GradientNodeDirection::RADIAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |x, y| {
                 let u = x as f32 / WIDTH as f32 - 0.5;
                 let v = y as f32 / HEIGHT as f32 - 0.5;
                 let dist = (u*u+v*v).sqrt();
-                lerp_gradient(&self.gradient, dist / 2.0_f32.sqrt())
+                self.gradient.get_color(dist / 2.0_f32.sqrt())
             }),
         }
     }

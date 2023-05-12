@@ -1,11 +1,10 @@
 [package]
-name = "texture_generators"
+name = "core"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-core = {path = "../core"}
-graph = {path= "../graph"}
 image = "0.24.6"
+interpolation = "0.2.0"
