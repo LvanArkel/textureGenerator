@@ -2,7 +2,7 @@ use core::Gradient;
 
 use graph::{TextureGraph, Node, NodeIndex};
 use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};
-use texture_generators::{GradientNode, CheckerboardNode, LinesNode, LinesPosition, BlendNode, SolidColorNode};
+use texture_generators::{GradientNode, CheckerboardNode, LinesNode, LinesPosition, BlendNode, SolidColorNode, GeneratorProperties};
 
 fn create_graph(nodes: Vec<Node<Rgb32FImage>>) -> (TextureGraph<Rgb32FImage>, Vec<NodeIndex>) {
     let mut graph = TextureGraph::<Rgb32FImage>::new();
@@ -21,28 +21,35 @@ fn add_edges(graph: &mut TextureGraph<Rgb32FImage>, indices: &Vec<NodeIndex>, ed
 
 fn main() -> () {
     let nodes = vec![
-        Node::new(String::from("Solid"), Box::new(SolidColorNode{color: Rgb([1.0, 0.0, 0.0])})),
+        Node::new(String::from("Solid"), Box::new(SolidColorNode{color: Rgb([1.0, 0.0, 0.0]), properties: GeneratorProperties::default()})),
         Node::new(String::from("GradientHorizontal"), 
             Box::new(GradientNode{gradient:Gradient{
                 start: Rgb([0.0, 0.0, 0.0]),
                 end: Rgb([0.0, 1.0, 0.0])
-            }, direction: texture_generators::GradientNodeDirection::HORIZONTAL })),
+            }, direction: texture_generators::GradientNodeDirection::HORIZONTAL,
+            properties: GeneratorProperties::default()
+        })),
         Node::new(String::from("GradientVertical"), 
             Box::new(GradientNode{gradient:Gradient{
                 start: Rgb([0.0, 0.0, 0.0]),
                 end: Rgb([1.0, 0.0, 0.0])
-            }, direction: texture_generators::GradientNodeDirection::VERTICAL })),
+            }, direction: texture_generators::GradientNodeDirection::VERTICAL, 
+            properties: GeneratorProperties::default()
+        })),
         Node::new(String::from("GradientRadial"), 
             Box::new(GradientNode{gradient:Gradient{
                 start: Rgb([0.0, 0.0, 0.0]),
                 end: Rgb([1.0, 0.0, 0.0])
-            }, direction: texture_generators::GradientNodeDirection::RADIAL })),
+            }, direction: texture_generators::GradientNodeDirection::RADIAL, 
+            properties: GeneratorProperties::default()
+        })),
         Node::new(String::from("CheckerboardS1"),
             Box::new(CheckerboardNode{
                 size_x: 1,
                 size_y: 1,
                 color1: Rgb([0.0, 0.0, 0.0]),
-                color2: Rgb([1.0, 1.0, 1.0]),
+                color2: Rgb([1.0, 1.0, 1.0]), 
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("CheckerboardS2"),
             Box::new(CheckerboardNode{
@@ -50,6 +57,7 @@ fn main() -> () {
                 size_y: 2,
                 color1: Rgb([0.0, 0.0, 0.0]),
                 color2: Rgb([0.0, 1.0, 1.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("CheckerboardS3"),
             Box::new(CheckerboardNode{
@@ -57,6 +65,7 @@ fn main() -> () {
                 size_y: 3,
                 color1: Rgb([0.0, 0.0, 0.0]),
                 color2: Rgb([1.0, 0.0, 0.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("CheckerboardS1-3"),
             Box::new(CheckerboardNode{
@@ -64,6 +73,7 @@ fn main() -> () {
                 size_y: 3,
                 color1: Rgb([0.0, 0.0, 0.0]),
                 color2: Rgb([0.0, 1.0, 0.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("LineStart"),
             Box::new(LinesNode {
@@ -71,7 +81,8 @@ fn main() -> () {
                 thickness: 0.4, 
                 position: LinesPosition::Start, 
                 color1: Rgb([0.0, 0.0, 0.0]), 
-                color2: Rgb([1.0, 1.0, 1.0]) 
+                color2: Rgb([1.0, 1.0, 1.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("LineMid"),
             Box::new(LinesNode {
@@ -79,7 +90,8 @@ fn main() -> () {
                 thickness: 0.4, 
                 position: LinesPosition::Middle, 
                 color1: Rgb([0.0, 0.0, 0.0]), 
-                color2: Rgb([1.0, 1.0, 1.0]) 
+                color2: Rgb([1.0, 1.0, 1.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("LineEnd"),
             Box::new(LinesNode {
@@ -87,7 +99,8 @@ fn main() -> () {
                 thickness: 0.4, 
                 position: LinesPosition::End, 
                 color1: Rgb([0.0, 0.0, 0.0]), 
-                color2: Rgb([1.0, 1.0, 1.0]) 
+                color2: Rgb([1.0, 1.0, 1.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("Multiscale"),
             Box::new(LinesNode {
@@ -95,7 +108,8 @@ fn main() -> () {
                 thickness: 0.2, 
                 position: LinesPosition::Start, 
                 color1: Rgb([0.0, 0.0, 0.0]), 
-                color2: Rgb([1.0, 1.0, 1.0]) 
+                color2: Rgb([1.0, 1.0, 1.0]),
+                properties: GeneratorProperties::default()
             })),
         Node::new(String::from("BasicBlend"),
             Box::new(BlendNode {
@@ -104,8 +118,9 @@ fn main() -> () {
         Node::new(String::from("GrayGradient"),
             Box::new(GradientNode {
                 gradient: Gradient{start: Rgb([0.0, 0.0, 0.0]), end: Rgb([1.0, 1.0, 1.0])},
-                direction: texture_generators::GradientNodeDirection::HORIZONTAL
-            })),
+                direction: texture_generators::GradientNodeDirection::HORIZONTAL,
+                properties: GeneratorProperties::default()
+            },)),
         Node::new(String::from("MaskBlend"),
             Box::new(BlendNode {
                 option: texture_generators::BlendOptions::Mask(0.4)

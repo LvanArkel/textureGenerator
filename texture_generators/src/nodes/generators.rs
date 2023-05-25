@@ -1,16 +1,28 @@
-use core::{Color, WIDTH, HEIGHT, Gradient};
+use core::{Color, Gradient};
 
 use graph::TextureTransformer;
 use image::{Rgb32FImage, ImageBuffer};
 
+pub struct GeneratorProperties {
+    pub width: u32,
+    pub height: u32
+}
+
+impl GeneratorProperties {
+    pub fn default() -> Self {
+        GeneratorProperties { width: 128, height: 128 }
+    }
+}
+
 /// A node that generates a solid color.
 pub struct SolidColorNode {
-    pub color: Color
+    pub color: Color,
+    pub properties: GeneratorProperties
 }
 
 impl TextureTransformer<Rgb32FImage> for SolidColorNode {
     fn generate(&self, _: Vec<&Rgb32FImage>) -> Rgb32FImage {
-        ImageBuffer::from_pixel(WIDTH, HEIGHT, self.color)
+        ImageBuffer::from_pixel(self.properties.width, self.properties.height, self.color)
     }
 
     fn inputs(&self) -> usize {
@@ -31,21 +43,24 @@ pub enum GradientNodeDirection {
 /// A node that produces a smooth gradient in a specified direction
 pub struct GradientNode {
     pub gradient: Gradient,
-    pub direction: GradientNodeDirection
+    pub direction: GradientNodeDirection,
+    pub properties: GeneratorProperties,
 }
 
 impl TextureTransformer<Rgb32FImage> for GradientNode {
     fn generate(&self, _: Vec<&Rgb32FImage>) -> Rgb32FImage {
+        let width = self.properties.width;
+        let height = self.properties.height;
         match self.direction {
-            GradientNodeDirection::HORIZONTAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |x, _| {
-                self.gradient.get_color(x as f32 / WIDTH as f32)
+            GradientNodeDirection::HORIZONTAL => ImageBuffer::from_fn(width, height, |x, _| {
+                self.gradient.get_color(x as f32 / width as f32)
             }),
-            GradientNodeDirection::VERTICAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |_, y| {
-                self.gradient.get_color(y as f32 / WIDTH as f32)
+            GradientNodeDirection::VERTICAL => ImageBuffer::from_fn(width, height, |_, y| {
+                self.gradient.get_color(y as f32 / width as f32)
             }),
-            GradientNodeDirection::RADIAL => ImageBuffer::from_fn(WIDTH, HEIGHT, |x, y| {
-                let u = x as f32 / WIDTH as f32 - 0.5;
-                let v = y as f32 / HEIGHT as f32 - 0.5;
+            GradientNodeDirection::RADIAL => ImageBuffer::from_fn(width, height, |x, y| {
+                let u = x as f32 / width as f32 - 0.5;
+                let v = y as f32 / height as f32 - 0.5;
                 let dist = (u*u+v*v).sqrt();
                 self.gradient.get_color(dist / 2.0_f32.sqrt())
             }),
@@ -66,14 +81,17 @@ pub struct CheckerboardNode {
     /// The color of the tiles starting in the top-left corner
     pub color1: Color,
     /// The color of the tiles not starting in the top-left corner.
-    pub color2: Color
+    pub color2: Color,
+    pub properties: GeneratorProperties,
 }
 
 impl TextureTransformer<Rgb32FImage> for CheckerboardNode {
     fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
-        let section_width = WIDTH / (self.size_x + 1) as u32;
-        let section_height = HEIGHT / (self.size_y + 1) as u32;
-        ImageBuffer::from_fn(WIDTH, HEIGHT, |x, y| {
+        let width = self.properties.width;
+        let height = self.properties.height;
+        let section_width = width / (self.size_x + 1) as u32;
+        let section_height = height / (self.size_y + 1) as u32;
+        ImageBuffer::from_fn(width, height, |x, y| {
             if ((x / section_width)%2) == ((y / section_height)%2) {
                 self.color1
             } else {
@@ -102,14 +120,17 @@ pub struct LinesNode {
     /// The color of the background
     pub color1: Color,
     /// The color of the line 
-    pub color2: Color
+    pub color2: Color,
+    pub properties: GeneratorProperties,
 }
 
 impl TextureTransformer<Rgb32FImage> for LinesNode {
     fn generate(&self, _inputs: Vec<&Rgb32FImage>) -> Rgb32FImage {
-        let section_height = HEIGHT / self.scale as u32;
+        let width = self.properties.width;
+        let height = self.properties.height;
+        let section_height = height / self.scale as u32;
         
-        Rgb32FImage::from_fn(WIDTH, HEIGHT, |_x, y| {
+        Rgb32FImage::from_fn(width, height, |_x, y| {
             let d_y = (y % section_height) as f32 / section_height as f32;
             match self.position {
                 LinesPosition::Start => if d_y <= self.thickness {self.color2} else {self.color1},
@@ -126,19 +147,32 @@ impl TextureTransformer<Rgb32FImage> for LinesNode {
 
 #[cfg(test)]
 pub mod tests {
-    use core::{Gradient, HEIGHT, WIDTH};
+    use core::Gradient;
 
     use graph::TextureTransformer;
     use image::Rgb;
 
-    use crate::{nodes::generators::SolidColorNode, CheckerboardNode, LinesPosition, LinesNode, GradientNodeDirection, GradientNode};
+    use crate::{nodes::generators::{SolidColorNode, GeneratorProperties}, CheckerboardNode, LinesPosition, LinesNode, GradientNodeDirection, GradientNode};
 
     #[test]
     fn test_solid() {
         let color = Rgb([1.0, 0.0, 0.0]);
-        let node = SolidColorNode{color: color};
+        let node = SolidColorNode{color, properties: GeneratorProperties::default()};
         let image = node.generate(Vec::new());
         assert!(image.pixels().all(|&pix| pix == color));
+    }
+
+    #[test]
+    fn test_solid_properties() {
+        let color = Rgb([1.0, 0.0, 0.0]);
+        let node = SolidColorNode{color, properties: GeneratorProperties { width: 128, height: 128 }};
+        let image = node.generate(Vec::new());
+        assert_eq!(128, image.width());
+        assert_eq!(128, image.height());
+        let node = SolidColorNode{color, properties: GeneratorProperties { width: 64, height: 64 }};
+        let image = node.generate(Vec::new());
+        assert_eq!(64, image.width());
+        assert_eq!(64, image.height());
     }
     
     #[test]
@@ -148,7 +182,7 @@ pub mod tests {
             start: color,
             end: color
         };
-        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::HORIZONTAL };
+        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::HORIZONTAL, properties: GeneratorProperties::default() };
         let image = node.generate(Vec::new());
         assert!(image.pixels().all(|&pix| pix == color));
     }
@@ -159,16 +193,16 @@ pub mod tests {
             start: Rgb([0.0, 0.0, 0.0]),
             end: Rgb([1.0, 0.0, 0.0])
         };
-        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::HORIZONTAL };
+        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::HORIZONTAL, properties: GeneratorProperties::default() };
         let image = node.generate(Vec::new());
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH-1 {
+        for y in 0..image.height() {
+            for x in 0..image.width()-1 {
                 assert!(image.get_pixel(x, y).0[0] <= image.get_pixel(x+1, y).0[0]);
             }
         }
-        for x in 0..WIDTH {
+        for x in 0..image.width() {
             let head = image.get_pixel(x, 0);
-            for y in 0..HEIGHT {
+            for y in 0..image.height() {
                 assert_eq!(head, image.get_pixel(x, y));
             }
         }
@@ -180,16 +214,16 @@ pub mod tests {
             start: Rgb([0.0, 0.0, 0.0]),
             end: Rgb([1.0, 0.0, 0.0])
         };
-        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::VERTICAL };
+        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::VERTICAL, properties: GeneratorProperties::default() };
         let image = node.generate(Vec::new());
-        for y in 0..HEIGHT {
+        for y in 0..image.height() {
             let head = image.get_pixel(0, y);
-            for x in 0..WIDTH {
+            for x in 0..image.width() {
                 assert_eq!(head, image.get_pixel(x, y));
             }
         }
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT-1 {
+        for x in 0..image.width() {
+            for y in 0..image.height()-1 {
                 assert!(image.get_pixel(x, y).0[0] <= image.get_pixel(x, y+1).0[0]);
             }
         }
@@ -201,22 +235,45 @@ pub mod tests {
             start: Rgb([1.0, 0.0, 0.0]),
             end: Rgb([0.0, 0.0, 0.0])
         };
-        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::RADIAL };
+        let node = GradientNode{gradient: gradient, direction: GradientNodeDirection::RADIAL, properties: GeneratorProperties::default() };
         let image = node.generate(Vec::new());
-        for y in 0..HEIGHT {
-            for x in 0..WIDTH/2-1 {
+        for y in 0..image.height() {
+            for x in 0..image.width()/2-1 {
                 assert!(image.get_pixel(x, y).0 <= image.get_pixel(x+1, y).0);
-                assert!(image.get_pixel(WIDTH-1-x, y).0 <= image.get_pixel(WIDTH-2-x, y).0);
+                assert!(image.get_pixel(image.width()-1-x, y).0 <= image.get_pixel(image.width()-2-x, y).0);
             }
         }
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT/2-1 {
+        for x in 0..image.width() {
+            for y in 0..image.height()/2-1 {
                 assert!(image.get_pixel(x, y).0 <= image.get_pixel(x, y+1).0);
-                assert!(image.get_pixel(x, HEIGHT-1-y).0 <= image.get_pixel(x, HEIGHT-2-y).0);
+                assert!(image.get_pixel(x, image.height()-1-y).0 <= image.get_pixel(x, image.height()-2-y).0);
             }
         }
     }
-
+    
+    #[test]
+    fn test_gradient_properties() {
+        let gradient = Gradient{
+            start: Rgb([1.0, 0.0, 0.0]),
+            end: Rgb([0.0, 0.0, 0.0])
+        };
+        let node = GradientNode{gradient: gradient, 
+            direction: GradientNodeDirection::RADIAL, 
+            properties: GeneratorProperties { width: 128, height: 128 } };
+        let image = node.generate(Vec::new());
+        assert_eq!(128, image.width());
+        assert_eq!(128, image.height());
+        let gradient = Gradient{
+            start: Rgb([1.0, 0.0, 0.0]),
+            end: Rgb([0.0, 0.0, 0.0])
+        };
+        let node = GradientNode{gradient: gradient, 
+            direction: GradientNodeDirection::RADIAL, 
+            properties: GeneratorProperties { width: 64, height: 64 } };
+        let image = node.generate(Vec::new());
+        assert_eq!(64, image.width());
+        assert_eq!(64, image.height());
+    }
     
     #[test]
     fn test_checkerboard_default() {
@@ -224,12 +281,13 @@ pub mod tests {
             size_x: 1,
             size_y: 1,
             color1: Rgb([0.0, 0.0, 0.0]),
-            color2: Rgb([1.0, 1.0, 1.0]),
+            color2: Rgb([1.0, 1.0, 1.0]), 
+            properties: GeneratorProperties::default(),
         };
         let image = node.generate(Vec::new());
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                if (x < WIDTH/2) == (y < HEIGHT/2) {
+        for x in 0..image.width() {
+            for y in 0..image.height() {
+                if (x < image.width()/2) == (y < image.height()/2) {
                     assert_eq!(image.get_pixel(x, y).0, node.color1.0);
                 } else {
                     assert_eq!(image.get_pixel(x, y).0, node.color2.0)
@@ -245,11 +303,12 @@ pub mod tests {
             size_y: 3,
             color1: Rgb([0.0, 0.0, 0.0]),
             color2: Rgb([1.0, 1.0, 1.0]),
+            properties: GeneratorProperties::default(),
         };
         let image = node.generate(Vec::new());
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                if ((x / (WIDTH/(node.size_x+1) as u32))%2) == ((y / (HEIGHT/(node.size_x+1) as u32))%2) {
+        for x in 0..image.width() {
+            for y in 0..image.height() {
+                if ((x / (image.width()/(node.size_x+1) as u32))%2) == ((y / (image.height()/(node.size_x+1) as u32))%2) {
                     assert_eq!(image.get_pixel(x, y).0, node.color1.0);
                 } else {
                     assert_eq!(image.get_pixel(x, y).0, node.color2.0)
@@ -265,11 +324,12 @@ pub mod tests {
             size_y: 3,
             color1: Rgb([0.0, 0.0, 0.0]),
             color2: Rgb([1.0, 1.0, 1.0]),
+            properties: GeneratorProperties::default(),
         };
         let image = node.generate(Vec::new());
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                if ((x / (WIDTH/(node.size_x+1) as u32))%2) == ((y / (HEIGHT/(node.size_y+1) as u32))%2) {
+        for x in 0..image.width() {
+            for y in 0..image.height() {
+                if ((x / (image.width()/(node.size_x+1) as u32))%2) == ((y / (image.height()/(node.size_y+1) as u32))%2) {
                     assert_eq!(image.get_pixel(x, y).0, node.color1.0);
                 } else {
                     assert_eq!(image.get_pixel(x, y).0, node.color2.0)
@@ -277,21 +337,45 @@ pub mod tests {
             }
         }
     }
+        
+    #[test]
+    fn test_checkerboard_properties() {
+        let node = CheckerboardNode{
+            size_x: 1,
+            size_y: 3,
+            color1: Rgb([0.0, 0.0, 0.0]),
+            color2: Rgb([1.0, 1.0, 1.0]),
+            properties: GeneratorProperties { width: 128, height: 128 }
+        };
+        let image = node.generate(Vec::new());
+        assert_eq!(128, image.width());
+        assert_eq!(128, image.height());
+        let node = CheckerboardNode{
+            size_x: 1,
+            size_y: 3,
+            color1: Rgb([0.0, 0.0, 0.0]),
+            color2: Rgb([1.0, 1.0, 1.0]),
+            properties: GeneratorProperties { width: 64, height: 64 }
+        };
+        let image = node.generate(Vec::new());
+        assert_eq!(64, image.width());
+        assert_eq!(64, image.height());
+    }
 
     fn test_line_helper(scale: usize, thickness: f32, position: LinesPosition) {
         let color1 = Rgb([0.0, 0.0, 0.0]);
         let color2 = Rgb([1.0, 1.0, 1.0]);
         let node = LinesNode {
-            scale, thickness, position, color1, color2
+            scale, thickness, position, color1, color2, properties: GeneratorProperties::default()
         };
         let image = node.generate(Vec::new());
-        for y in 0..HEIGHT {
+        for y in 0..image.height() {
             let head = image.get_pixel(0, y);
-            for x in 0..WIDTH {
+            for x in 0..image.width() {
                 assert_eq!(head, image.get_pixel(x, y));
             }
         }
-        let section_size = HEIGHT/scale as u32;
+        let section_size = image.height()/scale as u32;
         for i in 0..scale {
             for y in 0..section_size {
                 let d_y = y as f32 / section_size as f32;
@@ -323,5 +407,27 @@ pub mod tests {
     #[test]
     fn test_lines_end() {
         test_line_helper(2, 0.5, LinesPosition::End);
+    }
+            
+    #[test]
+    fn test_lines_properties() {
+        let color1 = Rgb([0.0, 0.0, 0.0]);
+        let color2 = Rgb([1.0, 1.0, 1.0]);
+        let node = LinesNode {
+            scale: 2, thickness: 0.5, position: LinesPosition::Start, color1, color2, 
+            properties: GeneratorProperties { width: 128, height: 128 }
+        };
+        let image = node.generate(Vec::new());
+        assert_eq!(128, image.width());
+        assert_eq!(128, image.height());
+        let color1 = Rgb([0.0, 0.0, 0.0]);
+        let color2 = Rgb([1.0, 1.0, 1.0]);
+        let node = LinesNode {
+            scale: 2, thickness: 0.5, position: LinesPosition::Start, color1, color2, 
+            properties: GeneratorProperties { width: 64, height: 64 }
+        };
+        let image = node.generate(Vec::new());
+        assert_eq!(64, image.width());
+        assert_eq!(64, image.height());
     }
 }

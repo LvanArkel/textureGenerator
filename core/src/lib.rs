@@ -1,9 +1,6 @@
 use image::Rgb;
 use interpolation::lerp;
 
-pub const WIDTH: u32 = 128;
-pub const HEIGHT: u32 = 128;
-
 pub type Color = Rgb<f32>;
 
 pub trait ImageOperation {
