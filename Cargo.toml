@@ -8,6 +8,7 @@ edition = "2021"
 [workspace]
 members = [
     "graph",
+    "gui",
     "texture_generators"
 ]
 
