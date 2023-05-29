@@ -1,6 +1,6 @@
-use core::{Color, Gradient};
+use tex_core::{Color, Gradient};
+use tex_core::TextureTransformer;
 
-use graph::TextureTransformer;
 use image::{Rgb32FImage, ImageBuffer};
 
 pub struct GeneratorProperties {
@@ -147,9 +147,9 @@ impl TextureTransformer<Rgb32FImage> for LinesNode {
 
 #[cfg(test)]
 pub mod tests {
-    use core::Gradient;
-
-    use graph::TextureTransformer;
+    use tex_core::Gradient;
+    use tex_core::TextureTransformer;
+    
     use image::Rgb;
 
     use crate::{nodes::generators::{SolidColorNode, GeneratorProperties}, CheckerboardNode, LinesPosition, LinesNode, GradientNodeDirection, GradientNode};

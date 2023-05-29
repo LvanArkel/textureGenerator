@@ -1,4 +1,4 @@
-use core::Gradient;
+use tex_core::Gradient;
 
 use graph::{TextureGraph, Node, NodeIndex};
 use image::{RgbImage, Rgb, Rgb32FImage, buffer::ConvertBuffer};

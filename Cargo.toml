@@ -7,6 +7,7 @@ edition = "2021"
 
 [workspace]
 members = [
+    "tex_core",
     "graph",
     "gui",
     "texture_generators"
@@ -14,6 +15,6 @@ members = [
 
 [dependencies]
 image = "0.24.6"
-core = {path="core"}
 graph = {path="graph"}
+tex_core = {path="tex_core"}
 texture_generators = {path="texture_generators"}

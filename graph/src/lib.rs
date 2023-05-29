@@ -1,24 +1,14 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 
+use tex_core::TextureTransformer;
+
 use petgraph::Direction::Incoming;
 use petgraph::algo::is_cyclic_directed;
 use petgraph::prelude::DiGraph;
 use petgraph::visit::{Topo, EdgeRef, Bfs};
 
 pub type NodeIndex = petgraph::graph::NodeIndex;
-
-pub trait TextureTransformer<T> {
-    /// Generates the value of the nodes given its target inputs in the correct order.
-    /// Function should assume inputs are valid
-    fn generate(&self, inputs: Vec<&T>) -> T;
-    /// Returns the amount of inputs this Transformer expects.
-    fn inputs(&self) -> usize;
-    /// Checks whether the inputs of the node conform. Can be used to see if images are the same size.
-    fn is_valid(&self, _inputs: &Vec<&T>) -> bool {
-        true
-    }
-}
 
 pub struct Node<T> {
     pub name: String,

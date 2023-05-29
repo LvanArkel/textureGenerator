@@ -1,6 +1,6 @@
-use core::average_color;
+use tex_core::average_color;
+use tex_core::TextureTransformer;
 
-use graph::TextureTransformer;
 use image::{Rgb32FImage, Pixel, Rgb};
 
 pub enum BlendOptions {
@@ -43,9 +43,10 @@ impl TextureTransformer<Rgb32FImage> for BlendNode {
 
 #[cfg(test)]
 mod tests {
-    use graph::TextureTransformer;
+    use tex_core::Gradient;
+    use tex_core::TextureTransformer;
+    
     use image::Rgb;
-    use core::Gradient;
 
     use crate::{SolidColorNode, BlendNode, BlendOptions, GradientNode, GradientNodeDirection, nodes::generators::GeneratorProperties};
 

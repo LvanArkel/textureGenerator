@@ -23,3 +23,15 @@ pub fn average_color(color: &Color) -> f32 {
     let [r, g, b] = color.0;
     (r+g+b) / 3.0
 }
+
+pub trait TextureTransformer<T> {
+    /// Generates the value of the nodes given its target inputs in the correct order.
+    /// Function should assume inputs are valid
+    fn generate(&self, inputs: Vec<&T>) -> T;
+    /// Returns the amount of inputs this Transformer expects.
+    fn inputs(&self) -> usize;
+    /// Checks whether the inputs of the node conform. Can be used to see if images are the same size.
+    fn is_valid(&self, _inputs: &Vec<&T>) -> bool {
+        true
+    }
+}
