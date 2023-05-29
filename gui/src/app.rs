@@ -49,6 +49,7 @@ impl Default for MyValueType {
 #[derive(EnumIter, Clone, Copy)]
 pub enum MyNodeTemplate {
     SolidColor,
+    BlendColor,
 }
 
 /// The response type is used to encode side-effects produced when drawing a
@@ -99,12 +100,14 @@ impl NodeTemplateTrait for MyNodeTemplate {
     fn node_finder_label(&self, user_state: &mut Self::UserState) -> std::borrow::Cow<str> {
         Cow::Borrowed(match self {
             MyNodeTemplate::SolidColor => "Solid color",
+            MyNodeTemplate::BlendColor => "Blend color",
         })
     }
 
     fn node_finder_categories(&self, _user_state: &mut Self::UserState) -> Vec<Self::CategoryType> {
         match self {
             MyNodeTemplate::SolidColor => vec!["Generator nodes"],
+            MyNodeTemplate::BlendColor => vec!["Transformation nodes"],
         }
     }
 
@@ -129,6 +132,21 @@ impl NodeTemplateTrait for MyNodeTemplate {
                     MyDataType::RgbColor,
                     MyValueType::RgbColor { value: Rgb([0.0, 0.0, 0.0]) }, 
                     egui_node_graph::InputParamKind::ConstantOnly, 
+                    true);
+                graph.add_output_param(node_id, "out".into(), MyDataType::RgbImage);
+            },
+            MyNodeTemplate::BlendColor => {
+                graph.add_input_param(node_id,
+                    "A".into(),
+                    MyDataType::RgbImage, 
+                    MyValueType::RgbImage { value: Rgb32FImage::new(0, 0) }, 
+                    egui_node_graph::InputParamKind::ConnectionOnly, 
+                    true);
+                graph.add_input_param(node_id,
+                    "B".into(),
+                    MyDataType::RgbImage, 
+                    MyValueType::RgbImage { value: Rgb32FImage::new(0, 0) }, 
+                    egui_node_graph::InputParamKind::ConnectionOnly, 
                     true);
                 graph.add_output_param(node_id, "out".into(), MyDataType::RgbImage);
             },
