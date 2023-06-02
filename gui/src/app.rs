@@ -179,14 +179,7 @@ impl WidgetValueTrait for MyValueType {
         match self {
             MyValueType::RgbColor { value } => {
                 ui.label(param_name);
-                ui.horizontal(|ui| {
-                    ui.label("r");
-                    ui.add(DragValue::new(&mut value.0[0]));
-                    ui.label("g");
-                    ui.add(DragValue::new(&mut value.0[1]));
-                    ui.label("b");
-                    ui.add(DragValue::new(&mut value.0[2]));
-                });
+                ui.color_edit_button_rgb(&mut value.0);
             },
             MyValueType::RgbImage { value } => {
                 ui.horizontal(|ui| {
