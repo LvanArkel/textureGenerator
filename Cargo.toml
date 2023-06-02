@@ -5,16 +5,14 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace]
-members = [
-    "tex_core",
-    "graph",
-    "gui",
-    "texture_generators"
-]
-
 [dependencies]
+eframe = "0.21.0"
+egui_node_graph = { git = "https://github.com/setzer22/egui_node_graph", rev = "3068b8cd9bad3a419682af273c01cd700bda2739" }
 image = "0.24.6"
-graph = {path="graph"}
-tex_core = {path="tex_core"}
-texture_generators = {path="texture_generators"}
+interpolation = "0.2.0"
+petgraph = "0.6.3"
+strum = "0.24.1"
+strum_macros = "0.24.3"
+
+
+anyhow = "1.0.71"

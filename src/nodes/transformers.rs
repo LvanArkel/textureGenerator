@@ -1,5 +1,5 @@
-use tex_core::average_color;
-use tex_core::TextureTransformer;
+use crate::average_color;
+use crate::TextureTransformer;
 
 use image::{Rgb32FImage, Pixel, Rgb};
 
@@ -43,8 +43,8 @@ impl TextureTransformer<Rgb32FImage> for BlendNode {
 
 #[cfg(test)]
 mod tests {
-    use tex_core::Gradient;
-    use tex_core::TextureTransformer;
+    use crate::Gradient;
+    use crate::TextureTransformer;
     
     use image::Rgb;
 

@@ -1,5 +1,5 @@
-use tex_core::{Color, Gradient};
-use tex_core::TextureTransformer;
+use crate::{Color, Gradient};
+use crate::TextureTransformer;
 
 use image::{Rgb32FImage, ImageBuffer};
 
@@ -147,8 +147,8 @@ impl TextureTransformer<Rgb32FImage> for LinesNode {
 
 #[cfg(test)]
 pub mod tests {
-    use tex_core::Gradient;
-    use tex_core::TextureTransformer;
+    use crate::Gradient;
+    use crate::TextureTransformer;
     
     use image::Rgb;
 

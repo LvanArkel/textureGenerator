@@ -1,6 +1,6 @@
 // ========= First, define your user data types =============
 
-use tex_core::Color;
+use super::Color;
 use std::{collections::HashMap, borrow::Cow};
 
 use eframe::egui::{self, DragValue};
